@@ -1,6 +1,6 @@
 import helperfunctions as hf 
 import numpy as np
-
+import pandas as pd 
 # 1. Genrate random T table 
 T= hf.generate_route_delay_table(
         N=100, 
@@ -16,7 +16,7 @@ T= hf.generate_route_delay_table(
 print(np.round(T,2))
 
 # 2. Read distance matrix
-
-
+distances = pd.read_csv('data/distances.csv', sep=";", index_col=0).values
+print(distances)
 
 # 3. Running GNP 
