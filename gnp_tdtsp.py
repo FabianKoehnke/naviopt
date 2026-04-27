@@ -61,13 +61,13 @@ pop.setAllNodeBoundaries(minFeatures, maxFeatures)
 for generation in range(generations):
     # 3.2 Evaluate fitness of individuals
     for ind in pop.individuals:
-        pop.individuals[0].initPathTraversal()
+        ind.initPathTraversal()
         visited_processing_nodes = set()
         visited_processing_nodes.add(num_edges) # waiting node is considered as visited at the beginning
         currentTime = 0
         currentStation = 0 # start at station 0
         fitness = 0
-        while len(visited_processing_nodes) < num_edges or currentTime < N:
+        while len(visited_processing_nodes) < num_edges and currentTime < N:
             delays = timetablesEachNode[currentStation][currentTime]
             dec = ind.decisionAndNextNode(delays,dMax=1) # maximal delay is set to 1, which means that only one judgment node can be activated at a time. 
             if dec == num_edges: # decision is to wait 
@@ -78,8 +78,10 @@ for generation in range(generations):
                 fitness += distances[currentStation, ind.currentNodeID] # add distance to fitness
                 fitness += delays[currentStation] #  add delay to fitness
                 dist = math.ceil(distances[currentStation, ind.currentNodeID] / minitues_per_index) # add distance to current time
+                print(f"Current station: {currentStation}, Current time: {currentTime}, Decision: {dec}, Delay: {delays[currentStation]}, Distance: {dist}")
                 currentTime += dist
-                currentStation = ind.currentNodeID
+                if ind.innerNodes[ind.currentNodeID].f != num_edges: # if the next node is waiting, add waiting time to fitness and current time
+                    currentStation = ind.innerNodes[ind.currentNodeID].f
 
             print(f"Current station: {currentStation}, Current time: {currentTime}, Fitness: {fitness}")
 
