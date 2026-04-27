@@ -69,19 +69,19 @@ for generation in range(generations):
         fitness = 0
         while len(visited_processing_nodes) < num_edges and currentTime < N:
             delays = timetablesEachNode[currentStation][currentTime]
-            dec = ind.decisionAndNextNode(delays,dMax=1) # maximal delay is set to 1, which means that only one judgment node can be activated at a time. 
+            dec = ind.decisionAndNextNode(delays,dMax=2) # maximal delay is set to 1, which means that only one judgment node can be activated at a time. 
+            print(f"decision: {dec}, delays: {delays}")
             if dec == num_edges: # decision is to wait 
                currentTime += 1 
                fitness += minitues_per_index
             else:
-                visited_processing_nodes.add(ind.currentNodeID)
-                fitness += distances[currentStation, ind.currentNodeID] # add distance to fitness
+                visited_processing_nodes.add(dec)
+                fitness += distances[currentStation, dec] # add distance to fitness
                 fitness += delays[currentStation] #  add delay to fitness
-                dist = math.ceil(distances[currentStation, ind.currentNodeID] / minitues_per_index) # add distance to current time
+                dist = math.ceil(distances[currentStation, dec] / minitues_per_index) # add distance to current time
                 print(f"Current station: {currentStation}, Current time: {currentTime}, Decision: {dec}, Delay: {delays[currentStation]}, Distance: {dist}")
                 currentTime += dist
-                if ind.innerNodes[ind.currentNodeID].f != num_edges: # if the next node is waiting, add waiting time to fitness and current time
-                    currentStation = ind.innerNodes[ind.currentNodeID].f
+                currentStation = dec 
 
             print(f"Current station: {currentStation}, Current time: {currentTime}, Fitness: {fitness}")
 
