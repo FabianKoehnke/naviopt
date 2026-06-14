@@ -2,47 +2,40 @@ import numpy as np
 from pyvis.network import Network
 from itertools import permutations
 
-def generate_route_delay_table(N, num_edges=6, max_base_delay=3, accident_prob=0.02, min_accident_duration=2, max_accident_duration=5, min_accident_impact=20, max_accident_impact=40, seed=None):
-    """
-    Generates a table T with smooth background traffic and sudden accidents.
-    
-    Parameters:
-    - N: Number of time windows.
-    - num_edges: Number of edges.
-    - max_base_delay: Normal peak traffic delay.
-    - accident_prob: Chance (0 to 1) of an accident starting in any time window/edge.
-    - min_accident_duration: Minimum duration (in time windows) of an accident.
-    - max_accident_duration: Maximum duration (in time windows) of an accident.
-    - min_accident_impact: Minimum additional delay (in minutes) caused by an accident_prob
-    - max_accident_impact: Maximum additional delay (in minutes) caused by an accident_prob.
-    """
-    np.random.seed(seed)  
-    
-    # --- STEP 1: Generate Smooth Background Traffic ---
-    window_size = 4
-    raw_noise = np.random.uniform(0, max_base_delay, size=(N + window_size, num_edges))
-    kernel = np.ones(window_size) / window_size
-    
+def generate_route_delay_table(N, num_edges=6, max_base_delay=3, accident_prob=0.02, 
+                                min_accident_duration=2, max_accident_duration=5, 
+                                min_accident_impact=20, max_accident_impact=40, seed=None):
+    np.random.seed(seed)
+
     T = np.zeros((N, num_edges))
-    for i in range(num_edges):
-        smoothed = np.convolve(raw_noise[:, i], kernel, mode='valid')
-        T[:, i] = smoothed[:N]
 
-    # --- STEP 2: Inject Sudden Accidents (Jumps) ---
     for e in range(num_edges):
-        for t in range(N):
-            # Roll the dice: Does an accident happen here?
-            if np.random.random() < accident_prob:
-                # Duration: how many windows the accident blocks the road (2 to 5)
-                duration = np.random.randint(min_accident_duration, max_accident_duration)
-                # Severity: how many extra minutes are added (the "jump")
-                impact = np.random.uniform(min_accident_impact, max_accident_impact)
-                
-                # Apply the impact to the current and subsequent time windows
-                end_t = min(t + duration, N)
-                T[t:end_t, e] += impact
+        # --- Jede Spalte bekommt eigene zufällige Parameter ---
+        col_max_base   = np.random.uniform(0.5, max_base_delay)       # unterschiedliches Basisrauschen
+        col_acc_prob   = np.random.uniform(0.1, accident_prob)        # unterschiedliche Unfallhäufigkeit
+        col_min_impact = np.random.uniform(min_accident_impact * 0.5, min_accident_impact)
+        col_max_impact = np.random.uniform(col_min_impact, max_accident_impact)
+        col_window     = np.random.randint(2, 10)                      # unterschiedliche Glättung
 
-    return T 
+        # --- STEP 1: Glattes Basisrauschen pro Spalte ---
+        raw_noise = np.random.uniform(0, col_max_base, size=N + col_window)
+        kernel    = np.ones(col_window) / col_window
+        smoothed  = np.convolve(raw_noise, kernel, mode='valid')
+        T[:, e]   = smoothed[:N]
+
+        # --- STEP 2: Unfälle pro Spalte injizieren ---
+        t = 0
+        while t < N:
+            if np.random.random() < col_acc_prob:
+                duration = np.random.randint(min_accident_duration, max_accident_duration)
+                impact   = np.random.uniform(col_min_impact, col_max_impact)
+                end_t    = min(t + duration, N)
+                T[t:end_t, e] += impact
+                t = end_t  # nach Unfall überspringen → keine überlappenden Unfälle
+            else:
+                t += 1
+
+    return T
 
 def build_features(delays, visited_set, num_edges):
     visited_flags = [1.0 if i in visited_set else 0.0 for i in range(num_edges)]

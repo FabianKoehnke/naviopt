@@ -12,8 +12,8 @@ num_edges = 6 # Number of stations
 individuals = 1000 # Number of individuals in the population
 judgment_nodes = 1 # Number of judgment nodes
 processing_nodes = 6 # Number of processing nodes
-minitues_per_index = 10 # number of minutes per waiting time index
-generations = 200 # number of generations to run the algorithm
+minitues_per_index = 1 # number of minutes per waiting time index
+generations = 300 # number of generations to run the algorithm
 worstFitness = -1000 # worst fitness value for invalid individuals
 
 # 1. Generate random T table 
@@ -23,16 +23,16 @@ for i in range(num_edges):
     T = hf.generate_route_delay_table(
             N=N, 
             num_edges=num_edges,
-            max_base_delay=1,
-            accident_prob=0.1,
-            min_accident_duration=10, 
-            max_accident_duration=60,
-            min_accident_impact=1, 
-            max_accident_impact=30, # waiting time cant be less than the time it takes to get to the next station
+            max_base_delay=2,
+            accident_prob=0.2,
+            min_accident_duration=20,
+            max_accident_duration=100,
+            min_accident_impact=10,
+            max_accident_impact=100, # waiting time cant be less than the time it takes to get to the next station
             seed=seed+i
             )
     timetablesEachNode.append(T)
-print(np.round(timetablesEachNode[0],2))
+print(np.round(timetablesEachNode[1],2))
 
 # 2. Read distance matrix
 distances = pd.read_csv('data/distances.csv', sep=";", index_col=0).values
@@ -59,6 +59,7 @@ for table in timetablesEachNode:
     for i in range(num_edges):
         if np.max(table[:,i]) > maxFeatures[i]:
             maxFeatures[i] = np.max(table[:,i])
+
 print("minFeatures: ", minFeatures)
 print("maxFeatures: ", maxFeatures)
 pop.setAllNodeBoundaries(minFeatures, maxFeatures)
@@ -89,7 +90,7 @@ for generation in range(generations):
                 break
             
             if dec == num_edges or currentStation == dec: # decision is to wait 
-               currentTime += 1 
+               currentTime += minitues_per_index 
                fitness += minitues_per_index
             else:
                 visited_processing_nodes.add(dec)
@@ -141,16 +142,25 @@ for generation in range(generations):
 
     usedJN = 0 
     for node in best.innerNodes:
-        if node.used == True and node.type == "JN":
+        if node.used == True and node.type == "J":
             usedJN += 1
     print(f"Generation: {generation} | Best fitness: {best.fitness} | NN: {len(best.innerNodes)} | usedJN: {usedJN}")
     fitness_over_time.append([ind.fitness for ind in pop.individuals])
 
-best.innerNodes[best.currentNodeID].used = False # set used to false for the best individual to prevent plotting the last used node and edge (which is not used in the best route)
-hf.plotNetwork(best, f"best_generation_{generation}_fitness_{best.fitness}.html", justUsedNodes = True, justUsedEdges = True)
+#best.innerNodes[best.currentNodeID].used = False # set used to false for the best individual to prevent plotting the last used node and edge (which is not used in the best route)
+hf.plotNetwork(best, f"best_generation_{generation}_fitness_{best.fitness}.html", justUsedNodes = False, justUsedEdges = False)
 
 # print decisions of best individuals
 print("Best individual's decisions: ", best.fitnessValues)
+routeTime = 0
+currentStation = int(best.fitnessValues[0])
+stations = list(dict.fromkeys(best.fitnessValues))
+print(stations)
+for dec in stations[1:]:
+    routeTime += distances[currentStation, int(dec)]
+    currentStation = int(dec)
+
+print("Route time without delay: ", routeTime)
 
 bestRoute, bestCost = hf.bruteforce_fastest_route(start=0, num_stations=num_edges, distances=distances)
 print("Best route: ", bestRoute)
